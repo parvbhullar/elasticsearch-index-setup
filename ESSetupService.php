@@ -9,6 +9,7 @@
 class ESSetupService
 {
     private $index, $indexName, $esClient, $tags = [], $textProcess;
+    private $host = "localhost";
 
     public function __construct($indexName = "idx_new")
     {
@@ -26,7 +27,7 @@ class ESSetupService
     public function createIndex($indexName = false)
     {
         $indexName = $indexName ? $indexName : $this->indexName;
-        $elasticaClient = $this->getClient();
+        $elasticaClient = $this->getClient($this->host);
         $elasticaIndex = $elasticaClient->getIndex($indexName);
 
         $elasticaIndex->create(
@@ -138,31 +139,32 @@ class ESSetupService
     public function getIndex($indexName = false)
     {
         $indexName = $indexName ? $indexName : $this->indexName;// = $indexName;
-        $elasticaClient = $this->getClient();
+        $elasticaClient = $this->getClient($this->host);
         $elasticaIndex = $elasticaClient->getIndex($indexName);
         return $elasticaIndex;
     }
 
-    public function addMappingField($type = "na", $name = 'un', $dataType = "string", $store = false)
+    public function addMappingField($type = "na", $name = 'un', $dataType = "text", $store = false)
     {
         $store = $store ? "yes" : "no";
         switch ($type) {
             case "search":
                 return array(
-                    'type' => 'multi_field',
-                    'path' => 'just_name',
-                    'fields' => array(
-                        $name => array('type' => $dataType, 'store' => $store, 'index_analyzer' => 'indexAnalyzer', 'search_analyzer' => 'searchAnalyzer'),
-                        $name . '_simple' => array('type' => $dataType, 'store' => $store, 'index_analyzer' => 'simpleAnalyzer', 'search_analyzer' => 'simpleAnalyzer')
-                    ),
-                    "similarity" => "BM25"
+                        'type' => $dataType,
+                        'store' => $store,
+                        'analyzer' => 'indexAnalyzer',
+                        'search_analyzer' => 'searchAnalyzer',
+                        'fields' => array(
+                            $name . '_simple' => array('type' => $dataType, 'store' => $store, 'analyzer' => 'simpleAnalyzer', 'search_analyzer' => 'simpleAnalyzer')
+                        ),
+                        "similarity" => "BM25"
                 );
             case "url":
-                return array('type' => $dataType, 'store' => $store, 'index_analyzer' => 'urlAnalyzer', 'search_analyzer' => 'urlAnalyzer');
+                return array('type' => $dataType, 'store' => $store, 'analyzer' => 'urlAnalyzer', 'search_analyzer' => 'urlAnalyzer');
             case "date":
                 return array('type' => 'date', 'format' => 'YYYY-MM-dd HH:mm:ss', 'store' => $store);
             case "suggest":
-                return array('type' => $dataType, 'analyzer' => 'simpleAnalyzer');
+                return array('type' => "completion", 'analyzer' => 'simpleAnalyzer');
             default :
                 return array('type' => $dataType, 'store' => $store, 'index' => 'not_analyzed');
         }
@@ -206,6 +208,7 @@ class ESSetupService
         if ($suggest) {
             $mapping_array["suggest"] = $this->addMappingField('suggest', 'suggest');
         }
+//        print_r($mapping_array);
         $mapping = new \Elastica\Type\Mapping($type, $mapping_array);
         return $type->setMapping($mapping);
     }
@@ -225,5 +228,44 @@ class ESSetupService
         }
 //        print_r($es_fields); exit;
         $this->createDocType($typeName, $es_fields, $suggest);
+    }
+
+    public function createDoc($obj){
+        $doc = new \Elastica\Document($obj["id"]);
+        foreach($obj as $key=>$value){
+            $doc->set($key, $this->isNull($value));
+            if($key == "name" || $key == "title"){
+                $doc->set("suggest", $this->isNull($value));
+            }
+        }
+        return $doc;
+    }
+
+    public function isNull($obj){
+        return $obj ? $obj : "";
+    }
+
+    public function pushData($typeName = "kn_docs", $data){
+        $index = $this->getIndex();
+        $type = $index->getType($typeName);
+
+        $documents = array();
+        $response = array();
+        $i = 1;
+        foreach($data as $s){
+            if(isset($s["id"])) {
+                $doc = $this->createDoc($s);
+                $documents[] = $doc;
+                $response[] = $s["id"];
+            } else {
+                $response[] = "ID not exists, skipping!";
+            }
+        }
+
+        if(count($documents)){
+            $type->addDocuments($documents);
+            $type->getIndex()->refresh();
+        }
+        return $response;
     }
 }

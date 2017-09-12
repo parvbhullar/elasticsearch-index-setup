@@ -1,0 +1,12 @@
+
+
+ES Commands
+#Create index
+php console.php es:create:index idx_city
+
+#Create Type
+php console.php es:create:type idx_city type_city name,search,text,true~is_display,other,integer,true~state_id,other,integer,true true
+
+#Load data from csv
+php console.php es:index:data idx_city type_city cities.csv
+
