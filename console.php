@@ -37,6 +37,12 @@ class Console
                 $suggest = isset($argv[5]) ? $argv[5] : false;
                 $this->esCreateDocType($index, $type, $fields, $suggest);
                 break;
+            case "es:create:type:yml":
+                $index = isset($argv[2]) ? $argv[2] : "Undefined";
+                $type = isset($argv[3]) ? $argv[3] : null;
+                $fileName = isset($argv[4]) ? $argv[4] : "Undefined";
+                $this->esCreateDocTypeYml($index, $type, $fileName);
+                break;
             case "es:index:data":
                 $index = isset($argv[2]) ? $argv[2] : "Undefined";
                 $type = isset($argv[3]) ? $argv[3] : "Undefined";
@@ -56,6 +62,12 @@ class Console
     {
         $esService = new ESSetupService($index);
         $esService->createDocTypeFromFieldsString($type, $fields, $suggest);
+    }
+
+    public function esCreateDocTypeYml($index, $type, $fileName)
+    {
+        $esService = new ESSetupService($index);
+        $esService->createDocTypeFromYml($type, $fileName);
     }
 
     public function esIndexData($index, $type, $fileName)

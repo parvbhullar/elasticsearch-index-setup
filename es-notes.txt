@@ -2,11 +2,27 @@
 
 ES Commands
 #Create index
-php console.php es:create:index idx_city
+php console.php es:create:index idx_live
 
-#Create Type
-php console.php es:create:type idx_city type_city name,search,text,true~is_display,other,integer,true~state_id,other,integer,true true
+#Create Type - City
+php console.php es:create:index idx_city
+php console.php es:create:type idx_city city name,search,text,true~is_display,other,integer,true~state_id,other,integer,true true
 
 #Load data from csv
-php console.php es:index:data idx_city type_city cities.csv
+php console.php es:index:data idx_city city data/cities.csv
 
+#Search Suggestions
+php console.php es:create:index idx_suggestions
+php console.php es:create:type idx_suggestions search_suggestions name,search,text,true~hits,other,integer,true
+
+#Load data from csv
+php console.php es:index:data idx_suggestions search_suggestions data/search_keywords.csv
+
+#Create Talks USE YML configuration
+php console.php es:create:type:yml idx_live type_talks data/talks.yml
+php console.php es:create:type:yml idx_live type_blogs data/blogs.yml
+php console.php es:create:type:yml idx_live type_questions data/questions.yml
+
+
+Load testing
+siege -c50 -t1M  --content-type="application/json" 'http://localhost:9200/idx_suggestions/search_suggestions/_search POST {"query": {"bool" : { "should" : [ { "match" : { "autocomplete" : "baby food for 8th months" } },{ "match_phrase_prefix" : { "name" : "baby food for 8th months " } } ], "minimum_should_match" : 1, "boost" : 1.0 } }}'

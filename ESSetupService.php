@@ -53,6 +53,11 @@ class ESSetupService
                             'tokenizer' => 'standard',
                             'filter' => array('lowercase', 'en_US', 'filter_stop', 'my_shingle')
                         ),
+                        'autocompleteAnalyzer' => array(
+                            'type' => 'custom',
+                            'tokenizer' => 'standard',
+                            'filter' => array('lowercase', 'autocomplete_filter')
+                        ),
                         'urlAnalyzer' => array(
                             'type' => 'custom',
                             'tokenizer' => 'letter',
@@ -100,6 +105,11 @@ class ESSetupService
                         'filter_url_stop' => array(
                             'type' => 'stop',
                             "stopwords" => ["http", "https", "ftp", "www"]
+                        ),
+                        "autocomplete_filter" => array(
+                            "type" => "edge_ngram",
+                            "min_gram" => 1,
+                            "max_gram" => 20
                         )
 //                    ,
 //                        'my_metaphone' => array(
@@ -150,21 +160,27 @@ class ESSetupService
         switch ($type) {
             case "search":
                 return array(
-                        'type' => $dataType,
-                        'store' => $store,
-                        'analyzer' => 'indexAnalyzer',
-                        'search_analyzer' => 'searchAnalyzer',
-                        'fields' => array(
-                            $name . '_simple' => array('type' => $dataType, 'store' => $store, 'analyzer' => 'simpleAnalyzer', 'search_analyzer' => 'simpleAnalyzer')
-                        ),
-                        "similarity" => "BM25"
+                    'type' => $dataType,
+                    'store' => $store,
+                    'analyzer' => 'indexAnalyzer',
+                    'search_analyzer' => 'searchAnalyzer',
+                    'fields' => array(
+                        $name . '_simple' => array('type' => $dataType, 'store' => $store, 'analyzer' => 'simpleAnalyzer', 'search_analyzer' => 'simpleAnalyzer')
+                    ),
+                    "similarity" => "BM25"
                 );
             case "url":
                 return array('type' => $dataType, 'store' => $store, 'analyzer' => 'urlAnalyzer', 'search_analyzer' => 'urlAnalyzer');
-            case "date":
+            case "datetime":
                 return array('type' => 'date', 'format' => 'YYYY-MM-dd HH:mm:ss', 'store' => $store);
+            case "date":
+                return array('type' => 'date', 'format' => 'yyyy-MM-dd', 'store' => $store);
             case "suggest":
                 return array('type' => "completion", 'analyzer' => 'simpleAnalyzer');
+            case "autocomplete":
+                return array('type' => $dataType, 'store' => $store, 'analyzer' => 'autocompleteAnalyzer');
+            case "nested":
+                return array('type' => "nested", 'properties' => []);
             default :
                 return array('type' => $dataType, 'store' => $store, 'index' => 'not_analyzed');
         }
@@ -193,27 +209,40 @@ class ESSetupService
     }
 
     public function createDocType($typeName = "type_new", $fields = array("field_name" => array(
-        "type" => "search", "data_type" => "string", "store" => true
+        "type" => "search", "data_type" => "text", "store" => true
     )), $suggest = false)
     {
         $index = $this->getIndex();
         $type = $index->getType($typeName);
-        $mapping_array = array();
-        foreach ($fields as $key => $field) {
-            $t = isset($field['type']) ? $field['type'] : 'na';
-            $data_type = isset($field['data_type']) ? $field['data_type'] : 'string';
-            $store = isset($field['store']) ? $field['store'] == 1 : false;
-            $mapping_array[$key] = $this->addMappingField(trim($t), $key, $data_type, $store);
-        }
-        if ($suggest) {
-            $mapping_array["suggest"] = $this->addMappingField('suggest', 'suggest');
-        }
-//        print_r($mapping_array);
+
+        $mapping_array = $this->getMappingFields($fields, $suggest);
         $mapping = new \Elastica\Type\Mapping($type, $mapping_array);
         return $type->setMapping($mapping);
     }
 
-    public function createDocTypeFromFieldsString($typeName, $fields = "title,search,string,true;", $suggest = false)
+    public function getMappingFields($fields, $suggest)
+    {
+        $mapping_array = array();
+        foreach ($fields as $key => $field) {
+            $t = isset($field['type']) ? $field['type'] : 'na';
+            $data_type = isset($field['data_type']) ? $field['data_type'] : 'text';
+            $store = isset($field['store']) ? $field['store'] == 1 : false;
+            $f = $this->addMappingField(trim($t), $key, $data_type, $store);
+            if ($t == "nested") {
+                $props = isset($field['properties']) ? $field['properties'] : [];
+                $props = $this->getMappingFields($props, $suggest);
+                $f['properties'] = $props;
+            }
+            $mapping_array[$key] = $f;
+        }
+        if ($suggest) {
+            $mapping_array["suggest"] = $this->addMappingField('suggest', 'suggest');
+            $mapping_array["autocomplete"] = $this->addMappingField('autocomplete', 'text');
+        }
+        return $mapping_array;
+    }
+
+    public function createDocTypeFromFieldsString($typeName, $fields = "title,search,text,true;", $suggest = false)
     {
         $fields = explode("~", $fields);
         $es_fields = array();
@@ -221,7 +250,7 @@ class ESSetupService
             $field = explode(",", $field);
             $es_field = array(
                 "type" => isset($field[1]) ? $field[1] : 'search',
-                "data_type" => isset($field[2]) ? $field[2] : "string",
+                "data_type" => isset($field[2]) ? $field[2] : "text",
                 "store" => isset($field[3]) ? $field[3] == 'true' : false
             );
             $es_fields[isset($field[0]) ? $field[0] : 'title'] = $es_field;
@@ -230,30 +259,47 @@ class ESSetupService
         $this->createDocType($typeName, $es_fields, $suggest);
     }
 
-    public function createDoc($obj){
+    public function createDocTypeFromYml($typeName, $file)
+    {
+        $type = spyc_load_file($file);
+        $fields = $type["fields"];
+        $suggest = $type["suggest"];
+        $typeName = $typeName ? $typeName : $type["type"];
+        $this->createDocType($typeName, $fields, $suggest);
+    }
+
+    public function getValue($array, $key, $default = ''){
+        return isset($array[$key]) ? $array[$key] : $default;
+    }
+
+    public function createDoc($obj)
+    {
         $doc = new \Elastica\Document($obj["id"]);
-        foreach($obj as $key=>$value){
+        foreach ($obj as $key => $value) {
             $doc->set($key, $this->isNull($value));
-            if($key == "name" || $key == "title"){
+            if ($key == "name" || $key == "title" || $key == "query") {
                 $doc->set("suggest", $this->isNull($value));
+                $doc->set("autocomplete", $this->isNull($value));
             }
         }
         return $doc;
     }
 
-    public function isNull($obj){
+    public function isNull($obj)
+    {
         return $obj ? $obj : "";
     }
 
-    public function pushData($typeName = "kn_docs", $data){
+    public function pushData($typeName = "kn_docs", $data)
+    {
         $index = $this->getIndex();
         $type = $index->getType($typeName);
 
         $documents = array();
         $response = array();
         $i = 1;
-        foreach($data as $s){
-            if(isset($s["id"])) {
+        foreach ($data as $s) {
+            if (isset($s["id"])) {
                 $doc = $this->createDoc($s);
                 $documents[] = $doc;
                 $response[] = $s["id"];
@@ -262,7 +308,7 @@ class ESSetupService
             }
         }
 
-        if(count($documents)){
+        if (count($documents)) {
             $type->addDocuments($documents);
             $type->getIndex()->refresh();
         }

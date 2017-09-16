@@ -1,0 +1,200 @@
+index: idx_live1
+type: talks
+suggest: true
+fields:
+        user_id:
+                type: na
+                data_type: integer
+                store: true
+        topic:
+                type: nested
+                properties:
+                        id:
+                                type: na
+                                data_type: integer
+                                store: true
+                        name:
+                                type: search
+                                data_type: text
+                                store: true
+        age_group:
+                type: nested
+                properties:
+                        id:
+                                type: na
+                                data_type: integer
+                                store: true
+                        name:
+                                type: search
+                                data_type: text
+                                store: true
+        like_users:
+                type: nested
+                properties:
+                            id:
+                                type: na
+                                data_type: integer
+                                store: true
+        comment_users:
+                type: nested
+                properties:
+                            id:
+                                type: na
+                                data_type: integer
+                                store: true
+        follow_users:
+                type: nested
+                properties:
+                            id:
+                                type: na
+                                data_type: integer
+                                store: true
+        share_users:
+                type: nested
+                properties:
+                            id:
+                                type: na
+                                data_type: integer
+                                store: true
+        cdate:
+                type: datetime
+                data_type: date
+                store: true
+        cdate_date:
+                type: date
+                data_type: date
+                store: true
+        cdate_week:
+                type: na
+                data_type: integer
+                store: true
+        cdate_year:
+                type: na
+                data_type: integer
+                store: true
+        cdate_month:
+                type: na
+                data_type: integer
+                store: true
+        popularity:
+                type: na
+                data_type: float
+                store: true
+        num_comments:
+                type: na
+                data_type: integer
+                store: true
+        num_likes:
+                type: na
+                data_type: integer
+                store: true
+        num_follows:
+                type: na
+                data_type: integer
+                store: true
+        num_shares:
+                type: na
+                data_type: float
+                store: true
+        is_answered:
+                type: na
+                data_type: boolean
+                store: true
+        is_expert_answered:
+                type: na
+                data_type: boolean
+                store: true
+        featured:
+                type: na
+                data_type: boolean
+                store: true
+        sponsored:
+                type: na
+                data_type: boolean
+                store: true
+        last_active_date:
+                type: datetime
+                data_type: date
+                store: true
+        item_age:
+                type: na
+                data_type: integer
+                store: true
+        item_pregnancy:
+                type: na
+                data_type: integer
+                store: true
+        is_anonymous:
+                type: na
+                data_type: boolean
+                store: true
+        is_private:
+                type: na
+                data_type: boolean
+                store: true
+        keywords:
+                type: search
+                data_type: text
+                store: true
+        title:
+                type: search
+                data_type: text
+                store: true
+        description:
+                type: search
+                data_type: text
+                store: true
+        summary:
+                type: search
+                data_type: text
+                store: true
+        text_size:
+                type: na
+                data_type: integer
+                store: true
+        lang:
+                type: na
+                data_type: text
+                store: true
+        content:
+                type: nested
+                properties:
+                        title:
+                                type: search
+                                data_type: text
+                                store: true
+                        description:
+                                type: search
+                                data_type: text
+                                store: true
+                        summary:
+                                type: search
+                                data_type: text
+                                store: true
+                        text_size:
+                                type: na
+                                data_type: integer
+                                store: true
+                        lang:
+                                type: na
+                                data_type: text
+                                store: true
+        comments:
+                type: nested
+                properties:
+                        id:
+                                type: na
+                                data_type: integer
+                                store: true
+                        comment_text:
+                                type: search
+                                data_type: text
+                                store: true
+
+
+
+
+
+
+
+
