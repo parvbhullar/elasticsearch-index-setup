@@ -29,7 +29,7 @@ $ php console.php es:create:type:yml idx_live type_talks data/talks.yml
 
 Index data from csv file.
 ```sh
-$ php console.php es:create:index <index_name> <type_name> <file_path>
+$ php console.php es:index:data <index_name> <type_name> <file_path>
 $ php console.php es:index:data idx_city city data/cities.csv
 ```
 
